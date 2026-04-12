@@ -184,7 +184,8 @@ st.title("🎧 Spotify Explorer Pro")
 try:
     user = sp.current_user()
 except Exception as e:
-    st.warning("Session expired. Please login again.")
+    st.warning("Spotify login failed — running in demo mode")
+    user = {"display_name": "Guest"}
     auth_url = auth_manager.get_authorize_url()
     st.link_button("Login with Spotify", auth_url)
     st.stop()
@@ -1113,7 +1114,13 @@ elif page == "📊 Dashboard":
     </div>
     """, unsafe_allow_html=True)
 
-    df = pd.read_csv("spotify_2015_2025_85k.csv")
+    if os.path.exists("spotify_2015_2025_85k.csv"):
+        df = pd.read_csv("spotify_2015_2025_85k.csv")
+    else:
+        st.error("❌ Dataset file not found in repository")
+        st.stop()
+        
+    st.write("Checkpoint 1 passed")
 
     # ---------------------------
     # 📊 POPULARITY CHART
