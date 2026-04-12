@@ -154,7 +154,7 @@ if "queue" not in st.session_state:
 load_dotenv()
 CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-REDIRECT_URI = "http://127.0.0.1:8501/"
+REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
 # ---------------------------
 # 🔐 AUTH
