@@ -151,7 +151,7 @@ if "queue" not in st.session_state:
 # ---------------------------
 # 🔐 ENV
 # ---------------------------
-load_dotenv()
+
 CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
@@ -179,17 +179,14 @@ def get_spotify():
 
 sp, auth_manager = get_spotify()
 
+st.title("🎧 Spotify Explorer Pro")
+
 try:
     user = sp.current_user()
-except:
-    user = None
-
-if not user:
-    st.title("🎧 Spotify Explorer Pro")
-
+except Exception as e:
+    st.warning("Session expired. Please login again.")
     auth_url = auth_manager.get_authorize_url()
     st.link_button("Login with Spotify", auth_url)
-
     st.stop()
 
 st.sidebar.success(f"Logged in as {user['display_name']}")
