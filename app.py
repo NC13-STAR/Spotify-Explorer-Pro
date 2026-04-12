@@ -159,6 +159,7 @@ REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 # ---------------------------
 # 🔐 AUTH
 # ---------------------------
+cache_path=".cache"
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
@@ -168,18 +169,15 @@ auth_manager = SpotifyOAuth(
     show_dialog=True
 )
 
-token_info = auth_manager.get_cached_token()
-if not token_info:
-    qp = st.query_params
-    if "code" not in qp:
-        st.title("🔐 Login to Spotify")
-        st.markdown(f"[👉 Login]({auth_manager.get_authorize_url()})")
-        st.stop()
-    token_info = auth_manager.get_access_token(qp["code"])
-    st.rerun()
 
-sp = spotipy.Spotify(auth=token_info["access_token"])
-user = sp.current_user()
+
+sp = spotipy.Spotify(auth_manager=auth_manager)
+
+try:
+    user = sp.current_user()
+except:
+    st.write("🔐 Please login via Spotify button above")
+    st.stop()
 
 # ---------------------------
 # 💾 STORAGE
