@@ -159,7 +159,8 @@ REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 # ---------------------------
 # 🔐 AUTH
 # ---------------------------
-cache_path=".cache"
+REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
+
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
@@ -169,16 +170,35 @@ auth_manager = SpotifyOAuth(
     show_dialog=True
 )
 
-
-
 sp = spotipy.Spotify(auth_manager=auth_manager)
+
+# ---------------------------
+# SAFE USER LOAD
+# ---------------------------
+user = None
 
 try:
     user = sp.current_user()
-except:
-    st.write("🔐 Please login via Spotify button above")
+except Exception:
+    user = None
+
+# ---------------------------
+# LOGIN HANDLING (NO BLANK SCREEN)
+# ---------------------------
+if user is None:
+    st.title("🎧 Spotify Explorer Pro")
+
+    auth_url = auth_manager.get_authorize_url()
+
+    st.markdown("### 🔐 Login Required")
+    st.link_button("Login with Spotify 🎵", auth_url)
+
     st.stop()
 
+# ---------------------------
+# AFTER LOGIN SUCCESS
+# ---------------------------
+st.sidebar.success(f"Logged in as {user['display_name']}")
 # ---------------------------
 # 💾 STORAGE
 # ---------------------------
