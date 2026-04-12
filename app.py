@@ -156,48 +156,42 @@ CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
 CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
+if not CLIENT_ID or not CLIENT_SECRET:
+    st.error("❌ Spotify credentials missing. Check Streamlit Secrets.")
+    st.stop()
+
 # ---------------------------
 # 🔐 AUTH
 # ---------------------------
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
-auth_manager = SpotifyOAuth(
-    client_id=CLIENT_ID,
-    client_secret=CLIENT_SECRET,
-    redirect_uri=REDIRECT_URI,
-    scope="user-read-private user-read-email playlist-read-private playlist-read-collaborative",
-    cache_path=".cache",
-    show_dialog=True
-)
+@st.cache_resource
+def get_spotify():
+    auth_manager = SpotifyOAuth(
+        client_id=CLIENT_ID,
+        client_secret=CLIENT_SECRET,
+        redirect_uri=REDIRECT_URI,
+        scope="user-read-private user-read-email playlist-read-private playlist-read-collaborative",
+        cache_path=".cache",
+        show_dialog=True
+    )
+    return spotipy.Spotify(auth_manager=auth_manager), auth_manager
 
-sp = spotipy.Spotify(auth_manager=auth_manager)
-
-# ---------------------------
-# SAFE USER LOAD
-# ---------------------------
-user = None
+sp, auth_manager = get_spotify()
 
 try:
     user = sp.current_user()
-except Exception:
+except:
     user = None
 
-# ---------------------------
-# LOGIN HANDLING (NO BLANK SCREEN)
-# ---------------------------
-if user is None:
+if not user:
     st.title("🎧 Spotify Explorer Pro")
 
     auth_url = auth_manager.get_authorize_url()
-
-    st.markdown("### 🔐 Login Required")
-    st.link_button("Login with Spotify 🎵", auth_url)
+    st.link_button("Login with Spotify", auth_url)
 
     st.stop()
 
-# ---------------------------
-# AFTER LOGIN SUCCESS
-# ---------------------------
 st.sidebar.success(f"Logged in as {user['display_name']}")
 # ---------------------------
 # 💾 STORAGE
