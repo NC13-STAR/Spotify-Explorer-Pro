@@ -6,7 +6,7 @@ from spotipy.oauth2 import SpotifyOAuth
 import os, json
 from dotenv import load_dotenv
 from youtubesearchpython import VideosSearch
-import numpy as np
+
 
 
 def ai_explain_graph(title, df):
