@@ -187,54 +187,77 @@ if not CLIENT_ID or not CLIENT_SECRET:
 # ---------------------------
 # 🔐 AUTH
 # ---------------------------
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import streamlit as st
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
+CLIENT_ID = st.secrets["SPOTIPY_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["SPOTIPY_CLIENT_SECRET"]
+
 auth_manager = SpotifyOAuth(
-    client_id=st.secrets["SPOTIPY_CLIENT_ID"],
-    client_secret=st.secrets["SPOTIPY_CLIENT_SECRET"],
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope="user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private",
-    cache_path=None,
+    cache_path=".cache",
     show_dialog=True
 )
 
-# -----------------------------
-# STEP 1: CHECK URL PARAMS
-# -----------------------------
-query_params = st.query_params
+sp = None
+user = None
 
-code = query_params.get("code")
+try:
+    # ----------------------------
+    # 1. Try cached login first
+    # ----------------------------
+    token_info = auth_manager.get_cached_token()
 
-token_info = None
+    # ----------------------------
+    # 2. If not logged in → check redirect
+    # ----------------------------
+    if not token_info:
+        query_params = st.query_params
 
-# -----------------------------
-# STEP 2: EXCHANGE CODE FOR TOKEN
-# -----------------------------
-if code:
-    try:
-        token_info = auth_manager.get_access_token(code)
-        st.rerun()
-    except Exception as e:
-        st.error(f"Login failed: {e}")
+        if "code" in query_params:
+            try:
+                token_info = auth_manager.get_access_token(
+                    query_params["code"],
+                    as_dict=True
+                )
+            except:
+                token_info = None
 
-# -----------------------------
-# STEP 3: CHECK TOKEN
-# -----------------------------
-if not token_info:
-    st.title("🔐 Login to Spotify")
-    auth_url = auth_manager.get_authorize_url()
-    st.markdown(f"[👉 Login here]({auth_url})")
-    st.stop()
+        # ----------------------------
+        # 3. If still no token → Guest Mode
+        # ----------------------------
+        if not token_info:
+            raise Exception("No login")
 
-# -----------------------------
-# STEP 4: CREATE SPOTIFY CLIENT
-# -----------------------------
-sp = spotipy.Spotify(auth=token_info["access_token"])
-user = sp.current_user()
+    # ----------------------------
+    # 4. Create Spotify client
+    # ----------------------------
+    sp = spotipy.Spotify(auth=token_info["access_token"])
+    user = sp.current_user()
+
+except:
+    # ----------------------------
+    # 🎧 GUEST MODE (SAFE FALLBACK)
+    # ----------------------------
+    st.warning("⚠️ Spotify login failed or not available. Running in Guest Mode.")
+
+    sp = spotipy.Spotify(
+        auth_manager=SpotifyClientCredentials(
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET
+        )
+    )
+
+    user = {
+        "display_name": "Guest User",
+        "id": "guest"
+    }
 # ---------------------------
 # 💾 STORAGE
 # ---------------------------
