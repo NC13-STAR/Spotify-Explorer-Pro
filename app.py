@@ -189,6 +189,7 @@ if not CLIENT_ID or not CLIENT_SECRET:
 # ---------------------------
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import streamlit as st
 
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
@@ -197,17 +198,41 @@ auth_manager = SpotifyOAuth(
     client_secret=st.secrets["SPOTIPY_CLIENT_SECRET"],
     redirect_uri=REDIRECT_URI,
     scope="user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private",
-    cache_path=".cache"
+    cache_path=None,
+    show_dialog=True
 )
 
-token_info = auth_manager.get_cached_token()
+# -----------------------------
+# STEP 1: CHECK URL PARAMS
+# -----------------------------
+query_params = st.query_params
 
+code = query_params.get("code")
+
+token_info = None
+
+# -----------------------------
+# STEP 2: EXCHANGE CODE FOR TOKEN
+# -----------------------------
+if code:
+    try:
+        token_info = auth_manager.get_access_token(code)
+        st.rerun()
+    except Exception as e:
+        st.error(f"Login failed: {e}")
+
+# -----------------------------
+# STEP 3: CHECK TOKEN
+# -----------------------------
 if not token_info:
     st.title("🔐 Login to Spotify")
     auth_url = auth_manager.get_authorize_url()
-    st.markdown(f"[Login here]({auth_url})")
+    st.markdown(f"[👉 Login here]({auth_url})")
     st.stop()
 
+# -----------------------------
+# STEP 4: CREATE SPOTIFY CLIENT
+# -----------------------------
 sp = spotipy.Spotify(auth=token_info["access_token"])
 user = sp.current_user()
 # ---------------------------
