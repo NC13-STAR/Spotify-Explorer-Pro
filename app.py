@@ -191,14 +191,15 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 
-REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
-
+# ---------------- CONFIG ----------------
 CLIENT_ID = st.secrets["SPOTIPY_CLIENT_ID"]
 CLIENT_SECRET = st.secrets["SPOTIPY_CLIENT_SECRET"]
 
+REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
+
 SCOPE = "user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private"
 
-# ---------------- SESSION STORAGE ----------------
+# ---------------- SESSION STATE ----------------
 if "token_info" not in st.session_state:
     st.session_state.token_info = None
 
@@ -206,22 +207,22 @@ if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "guest"
 
 if "user" not in st.session_state:
-    st.session_state.user = {"display_name": "Guest"}
+    st.session_state.user = {"display_name": "Guest User"}
 
-# ---------------- SPOTIFY AUTH ----------------
+# ---------------- AUTH MANAGER ----------------
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope=SCOPE,
-    cache_handler=None,
+    cache_path=".cache",
     show_dialog=True
 )
 
 sp = None
 query_params = st.query_params
 
-# ---------------- STEP 1: HANDLE REDIRECT LOGIN ----------------
+# ---------------- STEP 1: HANDLE LOGIN REDIRECT ----------------
 if st.session_state.token_info is None:
 
     if "code" in query_params:
@@ -234,28 +235,48 @@ if st.session_state.token_info is None:
             st.session_state.token_info = token_info
             st.session_state.auth_mode = "user"
 
-            # 🔥 IMPORTANT: clean URL to prevent loop
+            # Clean URL to prevent re-trigger
             st.query_params.clear()
-
             st.rerun()
 
         except Exception:
             st.session_state.token_info = None
+            st.session_state.auth_mode = "guest"
 
-# ---------------- STEP 2: TRY VALID USER SESSION ----------------
+# ---------------- STEP 2: VALIDATE / REFRESH SESSION ----------------
 if st.session_state.token_info:
+
     try:
-        sp = spotipy.Spotify(auth=st.session_state.token_info["access_token"])
+        sp = spotipy.Spotify(
+            auth=st.session_state.token_info["access_token"]
+        )
+
+        # test API call
         st.session_state.user = sp.current_user()
         st.session_state.auth_mode = "user"
 
-    except:
-        # 🔥 TOKEN EXPIRED → RESET
-        st.session_state.token_info = None
-        st.session_state.auth_mode = "guest"
+    except Exception:
 
-# ---------------- STEP 3: GUEST MODE ----------------
+        # ---------------- TOKEN REFRESH ----------------
+        try:
+            refreshed_token = auth_manager.refresh_access_token(
+                st.session_state.token_info["refresh_token"]
+            )
+
+            st.session_state.token_info = refreshed_token
+
+            sp = spotipy.Spotify(auth=refreshed_token["access_token"])
+            st.session_state.user = sp.current_user()
+            st.session_state.auth_mode = "user"
+
+        except Exception:
+            st.session_state.token_info = None
+            st.session_state.auth_mode = "guest"
+            sp = None
+
+# ---------------- STEP 3: GUEST MODE FALLBACK ----------------
 if sp is None:
+
     st.warning("⚠️ Spotify login failed or session expired. Running in Guest Mode.")
 
     sp = spotipy.Spotify(
@@ -270,6 +291,12 @@ if sp is None:
         "id": "guest"
     }
     st.session_state.auth_mode = "guest"
+
+# ---------------- STATUS UI ----------------
+if st.session_state.auth_mode == "user":
+    st.success(f"🎧 Logged in as {st.session_state.user['display_name']}")
+else:
+    st.info("👤 Guest Mode Active")
 # ---------------------------
 # 💾 STORAGE
 # ---------------------------
