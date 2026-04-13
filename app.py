@@ -222,7 +222,21 @@ auth_manager = SpotifyOAuth(
 sp = None
 query_params = st.query_params
 
-# ---------------- STEP 1: HANDLE LOGIN REDIRECT ----------------
+# ---------------- 🔥 RE-LOGIN BUTTON ----------------
+if st.session_state.auth_mode == "guest":
+    if st.button("🔐 Login with Spotify"):
+        auth_url = auth_manager.get_authorize_url()
+        st.markdown(f"[Click here to login]({auth_url})")
+
+# ---------------- 🔥 LOGOUT BUTTON ----------------
+if st.session_state.auth_mode == "user":
+    if st.button("🚪 Logout"):
+        st.session_state.token_info = None
+        st.session_state.user = {"display_name": "Guest User"}
+        st.session_state.auth_mode = "guest"
+        st.rerun()
+
+# ---------------- STEP 1: HANDLE REDIRECT ----------------
 if st.session_state.token_info is None:
 
     if "code" in query_params:
@@ -235,7 +249,6 @@ if st.session_state.token_info is None:
             st.session_state.token_info = token_info
             st.session_state.auth_mode = "user"
 
-            # Clean URL to prevent re-trigger
             st.query_params.clear()
             st.rerun()
 
@@ -243,7 +256,7 @@ if st.session_state.token_info is None:
             st.session_state.token_info = None
             st.session_state.auth_mode = "guest"
 
-# ---------------- STEP 2: VALIDATE / REFRESH SESSION ----------------
+# ---------------- STEP 2: VALIDATE + REFRESH ----------------
 if st.session_state.token_info:
 
     try:
@@ -251,13 +264,12 @@ if st.session_state.token_info:
             auth=st.session_state.token_info["access_token"]
         )
 
-        # test API call
         st.session_state.user = sp.current_user()
         st.session_state.auth_mode = "user"
 
     except Exception:
 
-        # ---------------- TOKEN REFRESH ----------------
+        # 🔥 TOKEN REFRESH
         try:
             refreshed_token = auth_manager.refresh_access_token(
                 st.session_state.token_info["refresh_token"]
@@ -274,10 +286,10 @@ if st.session_state.token_info:
             st.session_state.auth_mode = "guest"
             sp = None
 
-# ---------------- STEP 3: GUEST MODE FALLBACK ----------------
+# ---------------- STEP 3: GUEST MODE ----------------
 if sp is None:
 
-    st.warning("⚠️ Spotify login failed or session expired. Running in Guest Mode.")
+    st.warning("⚠️ Running in Guest Mode (Login not active)")
 
     sp = spotipy.Spotify(
         auth_manager=SpotifyClientCredentials(
