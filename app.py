@@ -191,9 +191,6 @@ import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 
-# ----------------------------
-# CONFIG
-# ----------------------------
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
 CLIENT_ID = st.secrets["SPOTIPY_CLIENT_ID"]
@@ -201,84 +198,59 @@ CLIENT_SECRET = st.secrets["SPOTIPY_CLIENT_SECRET"]
 
 SCOPE = "user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private"
 
-# ----------------------------
-# SESSION INIT (IMPORTANT)
-# ----------------------------
+# ---------------- SESSION SAFE STORAGE ----------------
 if "token_info" not in st.session_state:
     st.session_state.token_info = None
 
-if "user" not in st.session_state:
-    st.session_state.user = None
+if "auth_mode" not in st.session_state:
+    st.session_state.auth_mode = "guest"
 
-# ----------------------------
-# SPOTIFY AUTH MANAGER
-# ----------------------------
+# ---------------- OAUTH ----------------
 auth_manager = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
     scope=SCOPE,
     show_dialog=True,
-    cache_handler=None   # ❌ disables shared cache completely
+    cache_handler=None
 )
 
 sp = None
 
-# ----------------------------
-# AUTH FLOW
-# ----------------------------
-try:
-    token_info = st.session_state.token_info
+query_params = st.query_params
 
-    # 1️⃣ If not logged in → check redirect
-    if not token_info:
-        query_params = st.query_params
+# ---------------- LOGIN FLOW ----------------
+if st.session_state.token_info is None:
 
-        if "code" in query_params:
-            try:
-                token_info = auth_manager.get_access_token(
-                    query_params["code"],
-                    as_dict=True
-                )
-                st.session_state.token_info = token_info
-                st.rerun()
-            except:
-                token_info = None
-
-    # 2️⃣ If still no token → Guest Mode
-    if not token_info:
-        st.warning("⚠️ Running in Guest Mode (Login optional)")
-
-        sp = spotipy.Spotify(
-            auth_manager=SpotifyClientCredentials(
-                client_id=CLIENT_ID,
-                client_secret=CLIENT_SECRET
-            )
-        )
-
-        st.session_state.user = {
-            "display_name": "Guest User",
-            "id": "guest"
-        }
-
-    # 3️⃣ Logged in user
-    else:
-        sp = spotipy.Spotify(auth=token_info["access_token"])
-
+    if "code" in query_params:
         try:
-            user = sp.current_user()
-            st.session_state.user = user
-        except:
-            st.session_state.user = {
-                "display_name": "Guest User",
-                "id": "guest"
-            }
+            token_info = auth_manager.get_access_token(
+                query_params["code"],
+                as_dict=True
+            )
 
-except Exception as e:
-    # ----------------------------
-    # SAFE FALLBACK (NO CRASH)
-    # ----------------------------
-    st.warning("Login failed → Switching to Guest Mode")
+            # 🔥 STORE ONLY IN SESSION
+            st.session_state.token_info = token_info
+            st.session_state.auth_mode = "user"
+            st.rerun()
+
+        except:
+            st.session_state.token_info = None
+
+# ---------------- BUILD CLIENT ----------------
+if st.session_state.token_info:
+    try:
+        sp = spotipy.Spotify(auth=st.session_state.token_info["access_token"])
+        user = sp.current_user()
+        st.session_state.user = user
+        st.session_state.auth_mode = "user"
+
+    except:
+        st.session_state.token_info = None
+
+# ---------------- GUEST MODE (SAFE ISOLATED) ----------------
+if sp is None:
+    st.session_state.auth_mode = "guest"
 
     sp = spotipy.Spotify(
         auth_manager=SpotifyClientCredentials(
@@ -289,7 +261,7 @@ except Exception as e:
 
     st.session_state.user = {
         "display_name": "Guest User",
-        "id": "guest"
+        "id": f"guest_{st.session_state.get('session_id', 'x')}"
     }
 # ---------------------------
 # 💾 STORAGE
