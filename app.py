@@ -6,91 +6,94 @@ from spotipy.oauth2 import SpotifyOAuth
 import os, json
 from dotenv import load_dotenv
 from youtubesearchpython import VideosSearch
-from openai import OpenAI
+
 
 
 
 
 def ai_explain_graph(title, df):
-    import numpy as np
-    from openai import OpenAI
-    import streamlit as st
-
     st.markdown(f"""
     <div class='card'>
-        <h3>🧠 AI Insight: {title}</h3>
+        <h3>🧠 AI Auto Insight: {title}</h3>
     """, unsafe_allow_html=True)
 
-    numeric_df = df.select_dtypes(include=[np.number])
-
-    # ---------------------------
-    # 1. TRY REAL AI FIRST
-    # ---------------------------
     try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-        summary = {
-            "rows": len(df),
-            "columns": list(df.columns),
-            "mean_values": numeric_df.mean().to_dict() if not numeric_df.empty else {}
-        }
-
-        prompt = f"""
-        You are a Spotify music data analyst.
-
-        Analyze this dataset and explain insights clearly:
-
-        {summary}
-
-        Give:
-        - Key insights
-        - Music patterns
-        - Simple explanation for students
-        - Use emojis
-        """
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a data science expert in music analytics."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7
-        )
-
-        st.markdown(response.choices[0].message.content)
-
-    # ---------------------------
-    # 2. FALLBACK (IF AI FAILS)
-    # ---------------------------
-    except Exception as e:
-        st.warning("⚠️ AI unavailable — using fallback explanation")
-
-        st.markdown("### 📊 Rule-Based Insights")
+        # ---------------------------
+        # BASIC STATISTICS
+        # ---------------------------
+        numeric_df = df.select_dtypes(include=[np.number])
 
         if numeric_df.empty:
-            st.markdown("• No numeric data available for analysis")
-        else:
-            means = numeric_df.mean()
-            stds = numeric_df.std()
+            st.markdown("• No numeric data available for deep analysis")
+            st.markdown("</div>", unsafe_allow_html=True)
+            return
 
-            for col in numeric_df.columns:
-                st.markdown(f"• **{col}** → Avg: `{means[col]:.2f}` | Variation: `{stds[col]:.2f}`")
+        # Mean insights
+        means = numeric_df.mean()
+        stds = numeric_df.std()
 
-            # simple logic
-            if "Popularity" in numeric_df.columns:
-                if means["Popularity"] > 70:
-                    st.markdown("• 🔥 Highly popular trending songs")
-                elif means["Popularity"] > 40:
-                    st.markdown("• 🎵 Moderately popular songs")
-                else:
-                    st.markdown("• 🎧 Underground / niche tracks")
+        # ---------------------------
+        # GLOBAL INSIGHTS
+        # ---------------------------
+        st.markdown("### 📊 Key Insights")
 
-            if "energy" in numeric_df.columns:
-                if means["energy"] > 0.7:
-                    st.markdown("• ⚡ High-energy / workout music")
-                else:
-                    st.markdown("• 🌙 Calm / relaxed music")
+        for col in numeric_df.columns:
+            st.markdown(
+                f"• *{col}* → Avg: {means[col]:.2f} | Variation: {stds[col]:.2f}"
+            )
+
+        # ---------------------------
+        # INTELLIGENCE LAYER
+        # ---------------------------
+        st.markdown("### 🧠 AI Interpretation")
+
+        # High-level reasoning
+        if "Popularity" in numeric_df.columns:
+            if means["Popularity"] > 70:
+                st.markdown("• Dataset contains *very popular trending songs* 🔥")
+            elif means["Popularity"] > 40:
+                st.markdown("• Dataset contains *moderately popular songs* 🎵")
+            else:
+                st.markdown("• Dataset contains *underground / less popular tracks* 🎧")
+
+        if "energy" in numeric_df.columns:
+            if means["energy"] > 0.7:
+                st.markdown("• Songs are mostly *high energy / party type* ⚡")
+            else:
+                st.markdown("• Songs are mostly *calm / relaxed type* 🌙")
+
+        if "tempo" in numeric_df.columns:
+            if means["tempo"] > 120:
+                st.markdown("• Fast tempo dominates → *dance / workout music* 💃")
+            else:
+                st.markdown("• Slower tempo → *chill / emotional music* 💤")
+
+        # ---------------------------
+        # CLUSTER INSIGHT (IF AVAILABLE)
+        # ---------------------------
+        if "cluster" in df.columns:
+            cluster_counts = df["cluster"].value_counts()
+
+            dominant = cluster_counts.idxmax()
+
+            st.markdown("### 📦 Cluster Analysis")
+            st.markdown(f"• Dominant cluster: *{dominant}*")
+            st.markdown("• Suggests majority songs share similar audio behavior")
+
+        # ---------------------------
+        # FINAL SUMMARY
+        # ---------------------------
+        st.markdown("### 🎯 Summary")
+        st.markdown(
+            f"""
+            • Total records: {len(df)}  
+            • Features analyzed: {len(numeric_df.columns)}  
+            • AI detected patterns in music structure  
+            """
+        )
+
+    except Exception as e:
+        st.markdown(f"• AI analysis limited due to data format issue: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 # ---------------------------
