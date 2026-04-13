@@ -647,19 +647,12 @@ elif page == "🔍 Explore":
                     if st.button("❤️ Like", key=f"like{t['id']}"):
                         if t["id"] not in st.session_state.liked:
                             st.session_state.liked.append(t["id"])
-                    
-                    if st.button("➕", key=f"add_{t['id']}"):
-                            if not st.session_state.playlists:
-                                st.session_state.playlists["My Playlist"] = []
+                    if st.session_state.playlists:
+                        pl = st.selectbox("Playlist", list(st.session_state.playlists.keys()), key=f"pl{t['id']}")
+                        if st.button("➕ Add", key=f"add{t['id']}"):
+                            st.session_state.playlists[pl].append(t["id"])
+                            save_db()
 
-                    # auto add to first playlist (safe UX)
-                    pl_name = list(st.session_state.playlists.keys())[0]
-
-                    if t["id"] not in st.session_state.playlists[pl_name]:
-                        st.session_state.playlists[pl_name].append(t["id"])
-                        save_db()
-                        st.success("Added 🎵")
-                    
 
         # ARTISTS GRID
         st.subheader("🎤 Artists")
