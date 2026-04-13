@@ -1365,10 +1365,20 @@ elif page == "📂 Playlists":
 # ---------------------------
 elif page == "🎧 My Spotify":
     header("Your Spotify Playlists")
-    playlists = sp.current_user_playlists()
-    for pl in playlists["items"]:
-        st.markdown(render_explore_card(pl,"playlist"), unsafe_allow_html=True)
 
+    try:
+        playlists = sp.current_user_playlists()
+
+        if not playlists or "items" not in playlists:
+            st.warning("No playlists found or not logged in.")
+            st.stop()
+
+        for pl in playlists["items"]:
+            st.markdown(render_explore_card(pl, "playlist"), unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error("⚠️ Spotify login failed or session expired.")
+        st.info("Please re-login to continue using My Spotify section.")
 # ---------------------------
 # ABOUT
 # ---------------------------
