@@ -6,139 +6,160 @@ from spotipy.oauth2 import SpotifyOAuth
 import os, json
 from dotenv import load_dotenv
 from youtubesearchpython import VideosSearch
+from openai import OpenAI
+
 
 
 
 def ai_explain_graph(title, df):
+    import numpy as np
+    from openai import OpenAI
+    import streamlit as st
+
     st.markdown(f"""
     <div class='card'>
-        <h3>🧠 AI Auto Insight: {title}</h3>
+        <h3>🧠 AI Insight: {title}</h3>
     """, unsafe_allow_html=True)
 
+    numeric_df = df.select_dtypes(include=[np.number])
+
+    # ---------------------------
+    # 1. TRY REAL AI FIRST
+    # ---------------------------
     try:
-        # ---------------------------
-        # BASIC STATISTICS
-        # ---------------------------
-        numeric_df = df.select_dtypes(include=[np.number])
+        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-        if numeric_df.empty:
-            st.markdown("• No numeric data available for deep analysis")
-            st.markdown("</div>", unsafe_allow_html=True)
-            return
+        summary = {
+            "rows": len(df),
+            "columns": list(df.columns),
+            "mean_values": numeric_df.mean().to_dict() if not numeric_df.empty else {}
+        }
 
-        # Mean insights
-        means = numeric_df.mean()
-        stds = numeric_df.std()
+        prompt = f"""
+        You are a Spotify music data analyst.
 
-        # ---------------------------
-        # GLOBAL INSIGHTS
-        # ---------------------------
-        st.markdown("### 📊 Key Insights")
+        Analyze this dataset and explain insights clearly:
 
-        for col in numeric_df.columns:
-            st.markdown(
-                f"• **{col}** → Avg: `{means[col]:.2f}` | Variation: `{stds[col]:.2f}`"
-            )
+        {summary}
 
-        # ---------------------------
-        # INTELLIGENCE LAYER
-        # ---------------------------
-        st.markdown("### 🧠 AI Interpretation")
+        Give:
+        - Key insights
+        - Music patterns
+        - Simple explanation for students
+        - Use emojis
+        """
 
-        # High-level reasoning
-        if "Popularity" in numeric_df.columns:
-            if means["Popularity"] > 70:
-                st.markdown("• Dataset contains **very popular trending songs** 🔥")
-            elif means["Popularity"] > 40:
-                st.markdown("• Dataset contains **moderately popular songs** 🎵")
-            else:
-                st.markdown("• Dataset contains **underground / less popular tracks** 🎧")
-
-        if "energy" in numeric_df.columns:
-            if means["energy"] > 0.7:
-                st.markdown("• Songs are mostly **high energy / party type** ⚡")
-            else:
-                st.markdown("• Songs are mostly **calm / relaxed type** 🌙")
-
-        if "tempo" in numeric_df.columns:
-            if means["tempo"] > 120:
-                st.markdown("• Fast tempo dominates → **dance / workout music** 💃")
-            else:
-                st.markdown("• Slower tempo → **chill / emotional music** 💤")
-
-        # ---------------------------
-        # CLUSTER INSIGHT (IF AVAILABLE)
-        # ---------------------------
-        if "cluster" in df.columns:
-            cluster_counts = df["cluster"].value_counts()
-
-            dominant = cluster_counts.idxmax()
-
-            st.markdown("### 📦 Cluster Analysis")
-            st.markdown(f"• Dominant cluster: **{dominant}**")
-            st.markdown("• Suggests majority songs share similar audio behavior")
-
-        # ---------------------------
-        # FINAL SUMMARY
-        # ---------------------------
-        st.markdown("### 🎯 Summary")
-        st.markdown(
-            f"""
-            • Total records: {len(df)}  
-            • Features analyzed: {len(numeric_df.columns)}  
-            • AI detected patterns in music structure  
-            """
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a data science expert in music analytics."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7
         )
 
+        st.markdown(response.choices[0].message.content)
+
+    # ---------------------------
+    # 2. FALLBACK (IF AI FAILS)
+    # ---------------------------
     except Exception as e:
-        st.markdown(f"• AI analysis limited due to data format issue: {e}")
+        st.warning("⚠️ AI unavailable — using fallback explanation")
+
+        st.markdown("### 📊 Rule-Based Insights")
+
+        if numeric_df.empty:
+            st.markdown("• No numeric data available for analysis")
+        else:
+            means = numeric_df.mean()
+            stds = numeric_df.std()
+
+            for col in numeric_df.columns:
+                st.markdown(f"• **{col}** → Avg: `{means[col]:.2f}` | Variation: `{stds[col]:.2f}`")
+
+            # simple logic
+            if "Popularity" in numeric_df.columns:
+                if means["Popularity"] > 70:
+                    st.markdown("• 🔥 Highly popular trending songs")
+                elif means["Popularity"] > 40:
+                    st.markdown("• 🎵 Moderately popular songs")
+                else:
+                    st.markdown("• 🎧 Underground / niche tracks")
+
+            if "energy" in numeric_df.columns:
+                if means["energy"] > 0.7:
+                    st.markdown("• ⚡ High-energy / workout music")
+                else:
+                    st.markdown("• 🌙 Calm / relaxed music")
 
     st.markdown("</div>", unsafe_allow_html=True)
 # ---------------------------
 # AI EXPLANATION
 # ---------------------------
-def explain_graph(title, mode="general"):
-    st.markdown(f"""
-    <div class='card'>
-        <h3>🧠 AI Explanation: {title}</h3>
-    """, unsafe_allow_html=True)
+def explain_graph(title, content=None, mode="general"):
+    import streamlit as st
 
-    if mode == "popularity":
-        st.markdown("""
-        • Popularity ranges from 0–100  
-        • Higher value = more streams & engagement  
-        • Helps identify trending songs  
-        • Used by Spotify ranking algorithm  
-        """)
+    # Card container start
+    st.markdown(
+        f"""
+        <div class='card'>
+            <h3>🧠 AI Explanation: {title}</h3>
+        """,
+        unsafe_allow_html=True
+    )
 
-    elif mode == "clustering":
-        st.markdown("""
-        • Each point represents a song  
-        • Similar songs are grouped together  
-        • Based on audio features  
-        • Uses KMeans clustering  
-        """)
+    # ---------------------------
+    # CASE 1: If content is given (LIST format)
+    # ---------------------------
+    if isinstance(content, list):
+        for item in content:
+            st.markdown(f"• {item}")
 
-    elif mode == "pca":
-        st.markdown("""
-        • PCA reduces multiple features into 2D/3D  
-        • Helps visualize similarity  
-        • Captures main patterns in music  
-        """)
-
-    elif mode == "3d":
-        st.markdown("""
-        • 3D space shows deeper song similarity  
-        • Distance = similarity level  
-        • Used in recommendation engines  
-        """)
-
+    # ---------------------------
+    # CASE 2: If mode-based explanation
+    # ---------------------------
     else:
-        st.markdown("""
-        • AI-based visualization of music data  
-        • Helps understand hidden patterns  
-        """)
+        if mode == "popularity":
+            st.markdown("""
+            • Popularity = Spotify ranking score (0–100)  
+            • Higher score = more streams + saves  
+            • Used to detect trending songs  
+            • Helps ranking in recommendation systems  
+            """)
 
+        elif mode == "clustering":
+            st.markdown("""
+            • Groups similar songs together  
+            • Based on audio features like energy & tempo  
+            • Uses KMeans clustering algorithm  
+            • Each cluster = similar music style  
+            """)
+
+        elif mode == "pca":
+            st.markdown("""
+            • Reduces many features into 2D representation  
+            • Helps visualize song similarity  
+            • Captures main variance in music data  
+            """)
+
+        elif mode == "3d":
+            st.markdown("""
+            • 3D representation of music features  
+            • Each axis = hidden musical pattern  
+            • Distance = similarity between songs  
+            • Used in recommendation engines  
+            """)
+
+        else:
+            st.markdown("""
+            • AI analyzes music data patterns  
+            • Helps understand hidden relationships  
+            • Used for recommendation and clustering  
+            """)
+
+    # ---------------------------
+    # Card close
+    # ---------------------------
     st.markdown("</div>", unsafe_allow_html=True)
 # ---------------------------
 # 🎧 PLAYER STATE
@@ -480,6 +501,26 @@ section.main > div {{
 ::-webkit-scrollbar-thumb {{
     background: linear-gradient(#1DB954,#1ed760);
     border-radius: 10px;
+}}
+@media only screen and (max-width: 768px) {{
+    .stApp {{
+        font-size: 14px;
+    }}
+
+    .card {{
+        margin: 10px;
+        padding: 12px;
+    }}
+
+    .player {{
+        width: 95%;
+        bottom: 5px;
+    }}
+
+    section.main > div {{
+        max-width: 100%;
+        padding: 10px;
+    }}
 }}
 
 </style>
@@ -850,6 +891,7 @@ elif page == "🤖 AI":
             st.plotly_chart(fig, width="stretch")
 
             ai_explain_graph("Popularity Analysis", df_pop)
+            st.divider()
             explain_graph("Popularity Analysis", mode="popularity")
 
         except Exception as e:
