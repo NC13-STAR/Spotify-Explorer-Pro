@@ -1319,21 +1319,46 @@ elif page == "❤️ Liked":
 # ---------------------------
 elif page == "📂 Playlists":
     header("Your Playlists")
+
+    # CREATE PLAYLIST
     name = st.text_input("Create Playlist")
+
     if st.button("Create"):
-        if name:
-            st.session_state.playlists[name] = []
-            save_db()
-    for pname,songs in st.session_state.playlists.items():
-        st.subheader(pname)
-        for tid in songs:
-            t = sp.track(tid)
-            col1,col2 = st.columns([4,2])
-            col1.markdown(render_explore_card(t,"track"), unsafe_allow_html=True)
-            if col2.button("❌",key=f"{pname}{tid}"):
-                st.session_state.playlists[pname].remove(tid)
+        if name.strip():
+            if name not in st.session_state.playlists:
+                st.session_state.playlists[name] = []
                 save_db()
-                st.rerun()
+                st.success("Playlist Created 🎉")
+
+    # DISPLAY PLAYLISTS
+    for pname, songs in st.session_state.playlists.items():
+
+        st.subheader(pname)
+
+        if not songs:
+            st.info("No songs yet")
+            continue
+
+        for tid in songs:
+            try:
+                t = sp.track(tid)
+            except:
+                st.warning("Failed to load track")
+                continue
+
+            col1, col2 = st.columns([4, 1])
+
+            with col1:
+                st.markdown(render_explore_card(t, "track"), unsafe_allow_html=True)
+
+            with col2:
+                # FIXED UNIQUE KEY
+                if st.button("❌", key=f"del_{pname}_{tid}"):
+
+                    if tid in st.session_state.playlists[pname]:
+                        st.session_state.playlists[pname].remove(tid)
+                        save_db()
+                        st.rerun()
 
 # ---------------------------
 # MY SPOTIFY
