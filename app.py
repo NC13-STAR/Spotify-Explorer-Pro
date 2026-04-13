@@ -187,29 +187,24 @@ if not CLIENT_ID or not CLIENT_SECRET:
 # ---------------------------
 # 🔐 AUTH
 # ---------------------------
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
-auth_manager = SpotifyOAuth(
-    client_id=st.secrets["SPOTIPY_CLIENT_ID"],
-    client_secret=st.secrets["SPOTIPY_CLIENT_SECRET"],
-    redirect_uri=REDIRECT_URI,
-    scope="user-read-private user-read-email playlist-read-private playlist-modify-public playlist-modify-private",
-    cache_path=".cache"
+import streamlit as st
+import spotipy
+
+
+
+
+CLIENT_ID = st.secrets["SPOTIPY_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["SPOTIPY_CLIENT_SECRET"]
+
+auth_manager = spotipy.oauth2.SpotifyClientCredentials(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET
 )
 
-token_info = auth_manager.get_cached_token()
-
-if not token_info:
-    st.title("🔐 Login to Spotify")
-    auth_url = auth_manager.get_authorize_url()
-    st.markdown(f"[Login here]({auth_url})")
-    st.stop()
-
-sp = spotipy.Spotify(auth=token_info["access_token"])
-user = sp.current_user()
+sp = spotipy.Spotify(auth_manager=auth_manager)
+user = {"display_name": "Guest (Demo Mode)"}
 # ---------------------------
 # 💾 STORAGE
 # ---------------------------
