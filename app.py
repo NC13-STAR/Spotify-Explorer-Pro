@@ -168,7 +168,8 @@ REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 import streamlit as st
 import spotipy
 
-st.title("Spotify Explorer Pro")
+
+
 
 CLIENT_ID = st.secrets["SPOTIPY_CLIENT_ID"]
 CLIENT_SECRET = st.secrets["SPOTIPY_CLIENT_SECRET"]
