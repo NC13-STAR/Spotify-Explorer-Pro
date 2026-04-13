@@ -624,7 +624,8 @@ def header(title):
 # SIDEBAR
 # ---------------------------
 st.sidebar.title("🎵 Spotify Explorer")
-st.sidebar.write(f"👤 {user['display_name']}")
+user_name = st.session_state.user.get("display_name", "Guest")
+st.sidebar.write(f"👤 {user_name}")
 page = st.sidebar.radio(
     "Navigation",
     ["🏠 Home","🔍 Explore","🤖 AI","📊 Dashboard","❤️ Liked","📂 Playlists","🎧 My Spotify","ℹ️ About"],
