@@ -165,32 +165,21 @@ if not CLIENT_ID or not CLIENT_SECRET:
 # ---------------------------
 REDIRECT_URI = "https://spotify-explorer-pro.streamlit.app/"
 
-@st.cache_resource
-def get_spotify():
-    auth_manager = SpotifyOAuth(
-        client_id=CLIENT_ID,
-        client_secret=CLIENT_SECRET,
-        redirect_uri=REDIRECT_URI,
-        scope="user-read-private user-read-email playlist-read-private playlist-read-collaborative",
-        cache_path=".cache",
-        show_dialog=True
-    )
-    return spotipy.Spotify(auth_manager=auth_manager), auth_manager
+import streamlit as st
+import spotipy
 
-sp, auth_manager = get_spotify()
+st.title("Spotify Explorer Pro")
 
-st.title("🎧 Spotify Explorer Pro")
+CLIENT_ID = st.secrets["SPOTIPY_CLIENT_ID"]
+CLIENT_SECRET = st.secrets["SPOTIPY_CLIENT_SECRET"]
 
-try:
-    user = sp.current_user()
-except Exception as e:
-    st.warning("Spotify login failed — running in demo mode")
-    user = {"display_name": "Guest"}
-    auth_url = auth_manager.get_authorize_url()
-    st.link_button("Login with Spotify", auth_url)
-    st.stop()
+auth_manager = spotipy.oauth2.SpotifyClientCredentials(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET
+)
 
-st.sidebar.success(f"Logged in as {user['display_name']}")
+sp = spotipy.Spotify(auth_manager=auth_manager)
+user = {"display_name": "Guest (Demo Mode)"}
 # ---------------------------
 # 💾 STORAGE
 # ---------------------------
