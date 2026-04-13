@@ -672,7 +672,16 @@ elif page == "🔍 Explore":
             for idx, al in enumerate(albums["albums"]["items"][i:i+3]):
                 with cols[idx]:
                     st.markdown(render_explore_card(al, "album"), unsafe_allow_html=True)
+        #Add to playlist
+        with st.expander("➕ Add to Playlist"):
+            playlist_names = list(st.session_state.playlists.keys())
 
+        pl = st.selectbox("Choose playlist", playlist_names, key=f"pl_{t['id']}")
+
+        if st.button("Add", key=f"add_{t['id']}"):
+            st.session_state.playlists[pl].append(t["id"])
+            save_db()
+            st.success("Added!")
 # ---------------------------
 # ---------------------------
 # 🤖 AI PAGE (ULTIMATE FINAL VERSION - ZERO ERRORS)
